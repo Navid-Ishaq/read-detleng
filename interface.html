@@ -107,6 +107,32 @@ header{justify-content:flex-start}.controls{margin-left:auto}.library-anchor{pos
  .hero strong{font-size:14px}
  .hero span{font-size:11px}
 }
+/* BISMILLAH_CENTER_V2 */
+.hero {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) auto minmax(0,1fr);
+    align-items: center;
+}
+.hero > strong {
+    grid-column: 2;
+    grid-row: 1;
+    text-align: center;
+}
+.hero > span {
+    grid-column: 3;
+    grid-row: 1;
+    text-align: right;
+    min-width: 0;
+}
+@media (max-width: 760px) {
+    .hero { grid-template-columns: minmax(0,1fr); }
+    .hero > strong { grid-column: 1; grid-row: 1; }
+    .hero > span {
+        grid-column: 1;
+        grid-row: 2;
+        text-align: center;
+    }
+}
 </style></head>
 <body><header><div class="brand"><div class="brand-logo">☀️</div><div><h1>DeTLeng Read</h1><small>READ • REFLECT • DISCOVER</small></div></div><div class="library-anchor"><button class="file-toggle" id="fileToggle" aria-expanded="false" aria-controls="fileMenu">📚 Library <span id="fileMenuCount">(0)</span> ▾</button></div>
 <div class="controls"><span class="control-label">FONT SIZE</span><button class="size-btn" id="minus" title="Smaller text">−</button><input type="range" id="fontSlider" min="18" max="72" step="1" aria-label="Font size"><button class="size-btn" id="plus" title="Larger text">+</button><span class="font-chip" id="fontValue">31px</span><button class="action" id="reset">Reset</button><button class="action" id="fullscreen">⛶ Full screen</button></div></header>
