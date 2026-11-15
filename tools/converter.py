@@ -33,14 +33,50 @@ def paragraphs_in(node):
                 for cell in row.findall('w:tc', NS):
                     yield from paragraphs_in(cell)
 
+# READ_FORMAT_PATCH
+STYLES = {}
+def inherited_style(sid, seen=None):
+    seen = set() if seen is None else seen
+    if not sid or sid in seen or sid not in STYLES: return {}
+    seen.add(sid)
+    node = STYLES[sid]
+    base = node.find('w:basedOn', NS)
+    result = inherited_style(base.get(W+'val') if base is not None else None, seen)
+    for item in node.findall('w:pPr/*', NS)+node.findall('w:rPr/*', NS):
+        result[item.tag] = item.get(W+'val','1')
+    return result
+
 def para_to_html(p, default_rtl):
+    parent = {child: node for node in p.iter() for child in node}
+    style = p.find('w:pPr/w:pStyle', NS)
+    sid = style.get(W+'val','') if style is not None else ''
+    fmt = inherited_style(sid)
+    for item in p.findall('w:pPr/*', NS):
+        fmt[item.tag] = item.get(W+'val','1')
+
     parts = []
     raw = []
     for el in p.iter():
         if el.tag == W+'t':
             txt = el.text or ''
             raw.append(txt)
-            parts.append(html.escape(txt))
+            r = parent.get(el)
+            while r is not None and r.tag != W+'r':
+                r = parent.get(r)
+            rf = dict(fmt)
+            if r is not None:
+                rs = r.find('w:rPr/w:rStyle', NS)
+                if rs is not None:
+                    rf.update(inherited_style(rs.get(W+'val')))
+                for item in r.findall('w:rPr/*', NS):
+                    rf[item.tag] = item.get(W+'val','1')
+            cs = bool(re.search(r'[\u0590-\u08ff]',txt))
+            chunk = html.escape(txt)
+            for regular, complex_name, tagname in [('b','bCs','strong'),('i','iCs','em')]:
+                value = rf.get(W+complex_name,rf.get(W+regular,'0')) if cs else rf.get(W+regular,'0')
+                if value.lower() not in ('0','false','off','none'):
+                    chunk = '<'+tagname+'>'+chunk+'</'+tagname+'>'
+            parts.append(chunk)
         elif el.tag == W+'tab':
             raw.append(' ')
             parts.append('&emsp;')
@@ -60,11 +96,28 @@ def para_to_html(p, default_rtl):
             centered = jc.get(W+'val') == 'center'
     clean = re.sub(r'\s+', ' ', text)
     is_heading = len(clean) < 70 and bool(re.match(r'^(?:آیت\s*[۰-۹0-9]+|تفسیر\s*و\s*تدبر|بسم\s*اللہ|Verse\s+[0-9]+|Tafseer)', clean, re.I))
-    tag = 'h2' if is_heading else 'p'
-    cls = 'heading' if is_heading else 'para'
+    level = None
+    outline = fmt.get(W+'outlineLvl','')
+    if outline.isdigit() and int(outline)<6:
+        level = int(outline)+1
+    match = re.search(r'heading\s*([1-6])',sid,re.I)
+    if level is None and match:
+        level = int(match.group(1))
+    if level is None and sid.lower() in ('title','subtitle'):
+        level = 1 if sid.lower()=='title' else 2
+    if level is None and is_heading:
+        level = 2
+    tag = 'h'+str(level) if level else 'p'
+    cls = 'heading' if level else 'para'
+    align = fmt.get(W+'jc','')
+    centered = centered or align=='center'
+    css = 'font-size:'+str({1:1.45,2:1.3,3:1.18,4:1.12,5:1.08,6:1.04}[level])+'em;' if level else ''
+    if align in ('center','left','right','both'):
+        css += 'text-align:'+('justify' if align=='both' else align)+';'
+
     if centered: cls += ' centered'
     direction = 'rtl' if rtl else 'ltr'
-    return f'<{tag} class="{cls}" dir="{direction}">'+''.join(parts)+f'</{tag}>'
+    return f'<{tag} class="{cls}" dir="{direction}" style="{css}">'+''.join(parts)+f'</{tag}>'
 
 def docx_html(path):
     st = path.stat()
@@ -72,6 +125,14 @@ def docx_html(path):
     if key in CACHE:
         return CACHE[key]
     with zipfile.ZipFile(path) as archive:
+        STYLES.clear()
+        if 'word/styles.xml' in archive.namelist():
+            STYLES.update({
+                n.get(W+'styleId'):n
+                for n in ET.fromstring(
+                    archive.read('word/styles.xml')
+                ).findall('w:style',NS)
+            })
         xml = archive.read('word/document.xml')
     root = ET.fromstring(xml)
     body = root.find('w:body', NS)
