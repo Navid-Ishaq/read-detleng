@@ -95,6 +95,18 @@ header{justify-content:flex-start}.controls{margin-left:auto}.library-anchor{pos
  }
 }
 @media print{.mobile-tools-toggle{display:none!important}}
+
+/* READ_STICKY_BISMILLAH_V1 */
+.hero{
+ position:sticky;
+ top:var(--read-header-height,0px);
+ z-index:90;
+}
+@media(max-width:760px){
+ .hero{padding:8px 12px;gap:5px}
+ .hero strong{font-size:14px}
+ .hero span{font-size:11px}
+}
 </style></head>
 <body><header><div class="brand"><div class="brand-logo">☀️</div><div><h1>DeTLeng Read</h1><small>READ • REFLECT • DISCOVER</small></div></div><div class="library-anchor"><button class="file-toggle" id="fileToggle" aria-expanded="false" aria-controls="fileMenu">📚 Library <span id="fileMenuCount">(0)</span> ▾</button></div>
 <div class="controls"><span class="control-label">FONT SIZE</span><button class="size-btn" id="minus" title="Smaller text">−</button><input type="range" id="fontSlider" min="18" max="72" step="1" aria-label="Font size"><button class="size-btn" id="plus" title="Larger text">+</button><span class="font-chip" id="fontValue">31px</span><button class="action" id="reset">Reset</button><button class="action" id="fullscreen">⛶ Full screen</button></div></header>
@@ -170,4 +182,19 @@ document.addEventListener('keydown',e=>{
   mobileToolsButton.focus();
  }
 });
+
+/* READ_STICKY_BISMILLAH_V1 */
+const pinnedReadHeader=document.querySelector('header');
+
+function updateReadHeaderHeight(){
+ document.documentElement.style.setProperty(
+  '--read-header-height',
+  pinnedReadHeader.getBoundingClientRect().height+'px'
+ );
+}
+
+updateReadHeaderHeight();
+const readHeaderObserver=new ResizeObserver(updateReadHeaderHeight);
+readHeaderObserver.observe(pinnedReadHeader);
+window.addEventListener('resize',updateReadHeaderHeight);
 </script></body></html>
