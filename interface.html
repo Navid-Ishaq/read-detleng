@@ -47,6 +47,54 @@ header{justify-content:flex-start}.controls{margin-left:auto}.library-anchor{pos
 @media(max-width:760px){header{gap:12px}.controls{margin-left:0;width:100%}.file-menu{width:calc(100vw - 28px)}.library-anchor{margin-left:auto}.brand h1{font-size:24px}.brand small{font-size:10px}.file-toggle{padding:10px}.footer{font-size:15px}.expanded-files{padding:12px}.library-toolbar{padding:12px}.library-toolbar .action{font-size:13px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 @media print{#libraryDialog,.library-anchor{display:none!important}}
+
+/* READ_MOBILE_HEADER_V1 */
+.mobile-tools-toggle{display:none}
+@media(max-width:760px){
+ header{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto auto;
+  gap:6px;padding:8px 10px;align-items:center
+ }
+ header .brand{gap:6px;min-width:0}
+ header .brand>div:last-child{min-width:0}
+ header .brand-logo{
+  width:30px;height:30px;border-radius:10px;
+  font-size:19px;flex-shrink:0
+ }
+ header .brand h1{
+  font-size:17px;letter-spacing:-.4px;white-space:nowrap
+ }
+ header .brand small{display:none}
+ header .library-anchor{margin:0;min-width:0}
+ header .file-toggle{
+  font-size:12px;padding:8px;min-height:36px;border-radius:10px
+ }
+ header #fileMenuCount{display:none}
+ .mobile-tools-toggle{
+  display:grid;place-items:center;
+  width:36px;height:36px;padding:0;
+  border:1px solid #bcdef1;border-radius:10px;
+  background:#fff;color:#176b9a;font-size:21px
+ }
+ .mobile-tools-toggle[aria-expanded=true]{background:#e4f3ff}
+ header .controls{
+  display:none;grid-column:1/-1;width:100%;
+  margin:0;padding:8px;gap:8px;border-radius:12px
+ }
+ header.mobile-tools-open .controls{display:flex}
+ header .controls .font-chip{min-width:42px;font-size:13px}
+ header .controls input[type=range]{
+  width:90px;flex:1;min-width:60px
+ }
+ header .controls .size-btn{
+  width:36px;height:36px;font-size:22px
+ }
+ header .controls .action{
+  font-size:13px;padding:8px 10px;min-height:36px
+ }
+}
+@media print{.mobile-tools-toggle{display:none!important}}
 </style></head>
 <body><header><div class="brand"><div class="brand-logo">☀️</div><div><h1>DeTLeng Read</h1><small>READ • REFLECT • DISCOVER</small></div></div><div class="library-anchor"><button class="file-toggle" id="fileToggle" aria-expanded="false" aria-controls="fileMenu">📚 Library <span id="fileMenuCount">(0)</span> ▾</button></div>
 <div class="controls"><span class="control-label">FONT SIZE</span><button class="size-btn" id="minus" title="Smaller text">−</button><input type="range" id="fontSlider" min="18" max="72" step="1" aria-label="Font size"><button class="size-btn" id="plus" title="Larger text">+</button><span class="font-chip" id="fontValue">31px</span><button class="action" id="reset">Reset</button><button class="action" id="fullscreen">⛶ Full screen</button></div></header>
@@ -85,4 +133,41 @@ window.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&(e.key==='+'||e
 
 refresh();setInterval(refresh,30000);
 
+
+/* READ_MOBILE_HEADER_V1 */
+const mobileHeader=document.querySelector('header');
+const mobileControls=mobileHeader.querySelector('.controls');
+mobileControls.id='readingTools';
+
+const mobileToolsButton=document.createElement('button');
+mobileToolsButton.className='mobile-tools-toggle';
+mobileToolsButton.type='button';
+mobileToolsButton.textContent='\u2699';
+mobileToolsButton.setAttribute('aria-label','Reading settings');
+mobileToolsButton.setAttribute('aria-controls','readingTools');
+mobileToolsButton.setAttribute('aria-expanded','false');
+mobileHeader.insertBefore(mobileToolsButton,mobileControls);
+
+function toggleReadingTools(open){
+ mobileHeader.classList.toggle('mobile-tools-open',open);
+ mobileToolsButton.setAttribute('aria-expanded',String(open));
+ requestAnimationFrame(positionMenu);
+}
+
+mobileToolsButton.addEventListener('click',()=>{
+ setFileMenu(false);
+ toggleReadingTools(
+  mobileToolsButton.getAttribute('aria-expanded')!=='true'
+ );
+});
+
+fileToggle.addEventListener('click',()=>toggleReadingTools(false));
+
+document.addEventListener('keydown',e=>{
+ if(e.key==='Escape' &&
+    mobileToolsButton.getAttribute('aria-expanded')==='true'){
+  toggleReadingTools(false);
+  mobileToolsButton.focus();
+ }
+});
 </script></body></html>
