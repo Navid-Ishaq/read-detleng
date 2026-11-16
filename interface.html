@@ -133,6 +133,16 @@ header{justify-content:flex-start}.controls{margin-left:auto}.library-anchor{pos
         text-align: center;
     }
 }
+/* DETLENG_ALIGNMENT_V1 */
+#readerAlignment{display:inline-flex;align-items:center;gap:3px;max-width:100%;padding:3px;border:1px solid #cfe3f2;background:#f5fbff;border-radius:11px}
+#readerAlignment button{display:grid;place-items:center;width:34px;min-height:38px;padding:5px;border:0;border-radius:7px;background:transparent;color:#176b9a;font:inherit;cursor:pointer}
+#readerAlignment button:hover{background:#dcefff}
+#readerAlignment button[aria-pressed="true"]{background:#087ac8;color:white}
+#readerAlignment button:focus-visible{outline:3px solid #087ac8;outline-offset:2px}
+#content[data-reader-align],#content[data-reader-align] *{text-align:var(--reader-align)!important;text-align-last:auto!important}
+@media(pointer:coarse){#readerAlignment button{min-width:42px;min-height:44px}}
+@media print{#readerAlignment{display:none!important}}
+
 </style></head>
 <body><header><div class="brand"><div class="brand-logo">☀️</div><div><h1>DeTLeng Read</h1><small>READ • REFLECT • DISCOVER</small></div></div><div class="library-anchor"><button class="file-toggle" id="fileToggle" aria-expanded="false" aria-controls="fileMenu">📚 Library <span id="fileMenuCount">(0)</span> ▾</button></div>
 <div class="controls"><span class="control-label">FONT SIZE</span><button class="size-btn" id="minus" title="Smaller text">−</button><input type="range" id="fontSlider" min="18" max="72" step="1" aria-label="Font size"><button class="size-btn" id="plus" title="Larger text">+</button><span class="font-chip" id="fontValue">31px</span><button class="action" id="reset">Reset</button><button class="action" id="fullscreen">⛶ Full screen</button></div></header>
@@ -223,4 +233,30 @@ updateReadHeaderHeight();
 const readHeaderObserver=new ResizeObserver(updateReadHeaderHeight);
 readHeaderObserver.observe(pinnedReadHeader);
 window.addEventListener('resize',updateReadHeaderHeight);
+</script><script>
+// DETLENG_ALIGNMENT_V1
+(()=>{
+ const reader=document.getElementById('content'),full=document.getElementById('fullscreen'),reset=document.getElementById('reset');
+ if(!reader||!full||document.getElementById('readerAlignment'))return;
+ const group=document.createElement('div');group.id='readerAlignment';group.setAttribute('role','group');group.setAttribute('aria-label','Document text alignment');
+ const buttons=[],choices=['left','center','right','justify'];
+ function apply(value){
+  if(choices.includes(value)){reader.dataset.readerAlign=value;reader.style.setProperty('--reader-align',value)}
+  else{delete reader.dataset.readerAlign;reader.style.removeProperty('--reader-align')}
+  for(const b of buttons)b.setAttribute('aria-pressed',String(b.dataset.align===value));
+  try{if(value)localStorage.setItem('detleng-text-alignment',value);else localStorage.removeItem('detleng-text-alignment')}catch{}
+ }
+ for(const value of choices){
+  const b=document.createElement('button');b.type='button';b.dataset.align=value;const label=value==='justify'?'Justify text':'Align '+value;b.title=label;b.setAttribute('aria-label',label);b.setAttribute('aria-pressed','false');
+  const lengths=value==='justify'?[18,18,18,18]:[18,11,18,11];
+  const lines=lengths.map((w,i)=>{const x=value==='right'?21-w:value==='center'?(24-w)/2:3;return '<path d="M'+x+' '+(5+i*5)+'h'+w+'"/>'}).join('');
+  b.innerHTML='<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">'+lines+'</svg>';
+  b.onclick=()=>apply(value);buttons.push(b);group.append(b);
+ }
+ full.parentElement.insertBefore(group,full);
+ let remembered=null;try{remembered=localStorage.getItem('detleng-text-alignment')}catch{}
+ apply(choices.includes(remembered)?remembered:null);
+ if(reset)reset.addEventListener('click',()=>apply(null));
+})();
+
 </script></body></html>
