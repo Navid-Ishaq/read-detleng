@@ -143,6 +143,25 @@ header{justify-content:flex-start}.controls{margin-left:auto}.library-anchor{pos
 @media(pointer:coarse){#readerAlignment button{min-width:42px;min-height:44px}}
 @media print{#readerAlignment{display:none!important}}
 
+
+/* DETLENG_READ_MORNING_DUA_V1 */
+#readMorningDuaButton {white-space:normal}
+@media print {#readMorningDuaButton,#iqMorningDua {display:none!important}}
+
+#iqMorningDua {
+ box-sizing:border-box;width:min(760px,calc(100% - 24px));max-height:calc(100dvh - 24px);
+ overflow:auto;padding:clamp(12px,3vw,24px);border:1px solid #a8cbd9;border-radius:14px;
+ color:light-dark(#17394b,#e9f6fa);background:light-dark(#fffefa,#192f3d);
+ font:1rem/1.6 system-ui,sans-serif;
+}
+#iqMorningDua::backdrop {background:#102b3966}
+.iq-dua-header {display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.iq-dua-header h2 {margin:0;font-size:clamp(1.1rem,4vw,1.5rem)}
+.iq-dua-header button {padding:6px 10px;border:1px solid #a8cbd9;border-radius:8px;background:#155160;color:#fff;cursor:pointer}
+#iqMorningDuaPlayer iframe {display:block;width:100%;aspect-ratio:16/9;border:0;border-radius:8px;background:#132b39}
+#iqMorningDua section {border-top:1px solid light-dark(#c8e0e7,#456273);margin-top:16px;padding-top:12px}
+#iqMorningDua section h3 {margin:0 0 6px}
+#iqMorningDua a {color:light-dark(#135975,#9fe4ff)}
 </style></head>
 <body><header><div class="brand"><div class="brand-logo">☀️</div><div><h1>DeTLeng Read</h1><small>READ • REFLECT • DISCOVER</small></div></div><div class="library-anchor"><button class="file-toggle" id="fileToggle" aria-expanded="false" aria-controls="fileMenu">📚 Library <span id="fileMenuCount">(0)</span> ▾</button></div>
 <div class="controls"><span class="control-label">FONT SIZE</span><button class="size-btn" id="minus" title="Smaller text">−</button><input type="range" id="fontSlider" min="18" max="72" step="1" aria-label="Font size"><button class="size-btn" id="plus" title="Larger text">+</button><span class="font-chip" id="fontValue">31px</span><button class="action" id="reset">Reset</button><button class="action" id="fullscreen">⛶ Full screen</button></div></header>
@@ -259,4 +278,59 @@ window.addEventListener('resize',updateReadHeaderHeight);
  if(reset)reset.addEventListener('click',()=>apply(null));
 })();
 
-</script></body></html>
+</script><dialog id="iqMorningDua" aria-labelledby="iqMorningDuaTitle">
+ <div class="iq-dua-header">
+  <h2 id="iqMorningDuaTitle">Morning Dua · <bdi lang="ur">صبح کی دعا</bdi></h2>
+  <form method="dialog"><button type="submit" autofocus>Close</button></form>
+ </div>
+ <div id="iqMorningDuaPlayer"></div>
+ <p><a href="https://www.youtube.com/watch?v=7_dY3sP0nF8" target="_blank" rel="noopener noreferrer">Watch on YouTube ↗</a></p>
+ <section lang="en" dir="ltr">
+  <h3>Morning Dua for Protection, Blessings and Provision</h3>
+  <p>A 27-minute recording of morning supplications and <em>tasbih</em>, recited by Omar Hisham Al Arabi.</p>
+  <h3>About the reciter</h3>
+  <p>Omar Hisham Al Arabi is a Qur’an reciter from Egypt who primarily recites in the <em>Hafs ‘an ‘Asim</em> tradition. His recordings include individual surahs and a complete recitation of the Qur’an. He shares recitations and supplications on his official YouTube channel.</p>
+  <p><a href="https://www.youtube.com/@OmarHishamAlArabi/playlists" target="_blank" rel="noopener noreferrer">YouTube Playlists ↗</a> · <a href="https://www.facebook.com/omarhishamalarabi/?locale=ar_AR" target="_blank" rel="noopener noreferrer">Facebook ↗</a></p>
+ </section>
+ <section lang="ur" dir="rtl">
+  <h3>حفاظت، برکت اور رزق کے لیے صبح کی دعائیں</h3>
+  <p>عمر ہشام العربی کی آواز میں ۲۷ منٹ کی اس ریکارڈنگ میں صبح کی دعائیں اور تسبیحات شامل ہیں۔</p>
+  <h3>قاری کا مختصر تعارف</h3>
+  <p>عمر ہشام العربی مصر سے تعلق رکھنے والے قاریِ قرآن ہیں۔ وہ عموماً <strong>روایتِ حفص عن عاصم</strong> میں تلاوت کرتے ہیں۔ ان کی آواز میں مختلف سورتوں کی تلاوت کے ساتھ پورے قرآنِ مجید کی ریکارڈنگ بھی دستیاب ہے۔ وہ اپنے یوٹیوب چینل پر تلاوت اور دعاؤں کی ریکارڈنگز پیش کرتے ہیں۔</p>
+  <p><a href="https://www.youtube.com/@OmarHishamAlArabi/playlists" target="_blank" rel="noopener noreferrer">یوٹیوب پر مزید تلاوت اور دعائیں ↗</a> · <a href="https://www.facebook.com/omarhishamalarabi/?locale=ar_AR" target="_blank" rel="noopener noreferrer">فیس بک صفحہ ↗</a></p>
+ </section>
+</dialog>
+<script>
+(() => {
+ const library = document.getElementById('fileToggle');
+ const button = document.createElement('button');
+ button.type = 'button';
+ button.className = 'file-toggle';
+ button.id = 'readMorningDuaButton';
+ button.setAttribute('aria-haspopup','dialog');
+ button.setAttribute('aria-controls','iqMorningDua');
+ button.append('☀ Morning Dua · ');
+ const urdu = document.createElement('bdi');
+ urdu.lang = 'ur';
+ urdu.textContent = 'صبح کی دعا';
+ button.append(urdu);
+ (library.closest('.library-anchor') || library).after(button);
+ const dialog = document.getElementById('iqMorningDua');
+ const player = document.getElementById('iqMorningDuaPlayer');
+ button.onclick = () => {
+  if (dialog.open) return;
+  if (typeof setFileMenu === 'function') setFileMenu(false);
+  const frame = document.createElement('iframe');
+  frame.title = 'Morning Dua by Omar Hisham Al Arabi';
+  frame.src = 'https://www.youtube-nocookie.com/embed/7_dY3sP0nF8';
+  frame.allow = 'encrypted-media; picture-in-picture; fullscreen';
+  frame.allowFullscreen = true;
+  frame.referrerPolicy = 'strict-origin-when-cross-origin';
+  player.replaceChildren(frame);
+  dialog.showModal();
+  dialog.scrollTop = 0;
+ };
+ dialog.addEventListener('close', () => player.replaceChildren());
+})();
+</script>
+</body></html>
