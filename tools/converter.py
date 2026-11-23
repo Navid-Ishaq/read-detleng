@@ -46,7 +46,43 @@ def inherited_style(sid, seen=None):
         result[item.tag] = item.get(W+'val','1')
     return result
 
-def para_to_html(p, default_rtl):
+# DETLENG_DOCX_IMAGES_V1
+_IMAGE_MIME = {
+    'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg',
+    'gif': 'image/gif', 'webp': 'image/webp', 'bmp': 'image/bmp',
+}
+_DRAWING_BLIP = '{http://schemas.openxmlformats.org/drawingml/2006/main}blip'
+_VML_IMAGE = '{urn:schemas-microsoft-com:vml}imagedata'
+_IMAGE_REL = '{http://schemas.openxmlformats.org/officeDocument/2006/relationships}'
+
+
+def embedded_image_html(archive):
+    import base64
+
+    try:
+        rels = ET.fromstring(archive.read('word/_rels/document.xml.rels'))
+    except KeyError:
+        return {}
+    images = {}
+    for rel in rels:
+        if rel.get('TargetMode') == 'External' or not rel.get('Type', '').endswith('/image'):
+            continue
+        raw = rel.get('Target', '')
+        path = raw.lstrip('/') if raw.startswith('/') else 'word/' + raw
+        if not re.fullmatch(r'word/media/[^/]+', path, re.I):
+            continue
+        mime = _IMAGE_MIME.get(path.rsplit('.', 1)[-1].lower())
+        if not mime:
+            continue
+        try:
+            data = base64.b64encode(archive.read(path)).decode('ascii')
+        except KeyError:
+            continue
+        images[rel.get('Id')] = f'<img class="detleng-word-image" alt="Image from Word document" src="data:{mime};base64,{data}" loading="lazy">'
+    return images
+
+
+def para_to_html(p, default_rtl, images):
     parent = {child: node for node in p.iter() for child in node}
     style = p.find('w:pPr/w:pStyle', NS)
     sid = style.get(W+'val','') if style is not None else ''
@@ -57,6 +93,10 @@ def para_to_html(p, default_rtl):
     parts = []
     raw = []
     for el in p.iter():
+        if el.tag in (_DRAWING_BLIP, _VML_IMAGE):
+            rid = el.get(_IMAGE_REL+'embed') or el.get(_IMAGE_REL+'id')
+            parts.append(images.get(rid, ""))
+            continue
         if el.tag == W+'t':
             txt = el.text or ''
             raw.append(txt)
@@ -83,7 +123,7 @@ def para_to_html(p, default_rtl):
         elif el.tag in (W+'br', W+'cr'):
             parts.append('<br>')
     text = ''.join(raw).strip()
-    if not text:
+    if not text and not any('<img ' in part for part in parts):
         return ''
     rtl_count = sum('\u0590' <= c <= '\u08ff' for c in text)
     latin_count = sum('A' <= c <= 'Z' or 'a' <= c <= 'z' for c in text)
@@ -134,10 +174,11 @@ def docx_html(path):
                 ).findall('w:style',NS)
             })
         xml = archive.read('word/document.xml')
+        images = embedded_image_html(archive)
     root = ET.fromstring(xml)
     body = root.find('w:body', NS)
     default_rtl = bool(re.search(r'urdu|arabic', path.name, re.I))
-    blocks = [para_to_html(p, default_rtl) for p in paragraphs_in(body)] if body is not None else []
+    blocks = [para_to_html(p, default_rtl, images) for p in paragraphs_in(body)] if body is not None else []
     result = {'name': path.name, 'html': '\n'.join(x for x in blocks if x), 'blocks': sum(bool(x) for x in blocks)}
     CACHE.clear()
     CACHE[key] = result

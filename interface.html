@@ -178,6 +178,15 @@ header{justify-content:flex-start}.controls{margin-left:auto}.library-anchor{pos
 .iq-bismillah p[lang="ur"] {
  font-family:"DeTLeng Urdu Digit","Noto Naskh Arabic","Traditional Arabic","Segoe UI",serif;
 }
+
+/* DETLENG_DOCX_IMAGES_V1 */
+.detleng-word-image{display:inline-block;width:auto;max-width:100%;height:auto;vertical-align:middle}
+#localWordPreview{box-sizing:border-box;width:min(980px,calc(100% - 20px));max-height:90dvh;overflow:auto;border:1px solid #bfd8e5;border-radius:14px;padding:clamp(12px,3vw,24px);background:#fffdf9;color:#173b50}
+#localWordPreview::backdrop{background:#12334766}
+.local-word-header{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.local-word-header h2{margin:0;font-size:1.15rem;overflow-wrap:anywhere}
+#localWordBody p{margin:.7em 0}
+@media print{#openLocalWord{display:none!important}}
 </style></head>
 <body><header><div class="brand"><div class="brand-logo">☀️</div><div><h1>DeTLeng Read</h1><small>READ • REFLECT • DISCOVER</small></div></div><div class="library-anchor"><button class="file-toggle" id="fileToggle" aria-expanded="false" aria-controls="fileMenu">📚 Library <span id="fileMenuCount">(0)</span> ▾</button></div>
 <div class="controls"><span class="control-label">FONT SIZE</span><button class="size-btn" id="minus" title="Smaller text">−</button><input type="range" id="fontSlider" min="18" max="72" step="1" aria-label="Font size"><button class="size-btn" id="plus" title="Larger text">+</button><span class="font-chip" id="fontValue">31px</span><button class="action" id="reset">Reset</button><button class="action" id="fullscreen">⛶ Full screen</button></div></header>
@@ -347,6 +356,167 @@ window.addEventListener('resize',updateReadHeaderHeight);
   dialog.scrollTop = 0;
  };
  dialog.addEventListener('close', () => player.replaceChildren());
+})();
+</script>
+<input type="file" id="localWordFile" accept=".docx" hidden>
+<dialog id="localWordPreview" aria-labelledby="localWordTitle">
+ <div class="local-word-header">
+  <h2 id="localWordTitle"></h2>
+  <form method="dialog"><button type="submit" class="file-toggle">Close</button></form>
+ </div>
+ <div id="localWordBody" class="content"></div>
+</dialog>
+<script>
+(() => {
+ const library=document.getElementById('fileToggle');
+ const button=document.createElement('button');
+ button.type='button';
+ button.className='file-toggle';
+ button.id='openLocalWord';
+ button.textContent='Open Word File';
+ button.setAttribute('aria-haspopup','dialog');
+ button.setAttribute('aria-controls','localWordPreview');
+ const anchor=document.getElementById('readMorningDuaButton') || library.closest('.library-anchor') || library;
+ anchor.after(button);
+ const picker=document.getElementById('localWordFile');
+ const modal=document.getElementById('localWordPreview');
+ const heading=document.getElementById('localWordTitle');
+ const preview=document.getElementById('localWordBody');
+ const w='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+ const r='http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+ const a='http://schemas.openxmlformats.org/drawingml/2006/main';
+ const v='urn:schemas-microsoft-com:vml';
+ const types={png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',webp:'image/webp',bmp:'image/bmp'};
+ const urls=[];
+ let generation=0;
+ function clear(){
+  generation++;
+  preview.replaceChildren();
+  for (const url of urls.splice(0)) URL.revokeObjectURL(url);
+ }
+ function zip(buffer){
+  const bytes=new Uint8Array(buffer), view=new DataView(buffer);
+  const u16=i=>view.getUint16(i,true), u32=i=>view.getUint32(i,true);
+  let end=bytes.length-22;
+  while(end>=Math.max(0,bytes.length-65557)){
+   if(u32(end)===0x06054b50 && end+22+u16(end+20)===bytes.length)break;
+   end--;
+  }
+  if(end<Math.max(0,bytes.length-65557)||u16(end+4)||u16(end+6))throw Error('This file is not a supported Word document.');
+  const entries=new Map(), decoder=new TextDecoder();
+  let pos=u32(end+16);
+  const count=u16(end+10);
+  if(count>15000)throw Error('This Word document has too many parts.');
+  let processed=0;
+  for(let i=0;i<count;i++){
+   if(u32(pos)!==0x02014b50)throw Error('Invalid Word archive.');
+   const length=u16(pos+28);
+   const name=decoder.decode(bytes.subarray(pos+46,pos+46+length));
+   entries.set(name,{flags:u16(pos+8),method:u16(pos+10),size:u32(pos+24),packed:u32(pos+20),offset:u32(pos+42)});
+   pos+=46+length+u16(pos+30)+u16(pos+32);
+  }
+  return {async read(name){
+   const entry=entries.get(name);
+   if(!entry)return null;
+   const {flags,method,size,packed,offset}=entry;
+   if(flags&1 || size>64*1024*1024 || processed+size>128*1024*1024)throw Error('A Word document part is encrypted or too large to preview.');
+   if(u32(offset)!==0x04034b50)throw Error('Invalid Word archive.');
+   const start=offset+30+u16(offset+26)+u16(offset+28);
+   if(start+packed>bytes.length)throw Error('Incomplete Word archive.');
+   const data=bytes.subarray(start,start+packed);
+   processed+=size;
+   if(method===0 && size===packed)return data;
+   if(method!==8)throw Error('Unsupported Word compression.');
+   const reader=new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw')).getReader();
+   const output=new Uint8Array(size);
+   let written=0;
+   try {
+    for(;;){
+     const {done,value}=await reader.read();
+     if(done)break;
+     if(written+value.length>size)throw Error('Invalid Word part size.');
+     output.set(value,written);written+=value.length;
+    }
+    if(written!==size)throw Error('Incomplete Word document part.');
+    return output;
+   } finally {await reader.cancel().catch(()=>{});}
+  }};
+ }
+ function xml(bytes){
+  if(!bytes)throw Error('Word document data is missing.');
+  const doc=new DOMParser().parseFromString(new TextDecoder().decode(bytes),'application/xml');
+  if(doc.querySelector('parsererror'))throw Error('Word document data could not be read.');
+  return doc;
+ }
+ async function render(file,ticket){
+  if(file.size>64*1024*1024)throw Error('Choose a Word file under 64 MB.');
+  const archive=zip(await file.arrayBuffer());
+  const doc=xml(await archive.read('word/document.xml'));
+  const relationships=await archive.read('word/_rels/document.xml.rels');
+  const targets=new Map();
+  if(relationships)for(const relation of xml(relationships).documentElement.children){
+   if(!relation.getAttribute('Type')?.endsWith('/image')||relation.getAttribute('TargetMode')==='External')continue;
+   const target=relation.getAttribute('Target')||'';
+   const path=target.startsWith('/')?target.slice(1):'word/'+target;
+   if(/^word\/media\/[^/]+$/i.test(path))targets.set(relation.getAttribute('Id'),path);
+  }
+  const fragment=document.createDocumentFragment(), pictures=new Map();
+  const body=doc.getElementsByTagNameNS(w,'body')[0];
+  if(!body)throw Error('This document has no readable body.');
+  for(const paragraph of body.getElementsByTagNameNS(w,'p')){
+   const p=document.createElement('p');
+   p.dir='auto';
+   const alignment=paragraph.getElementsByTagNameNS(w,'jc')[0]?.getAttributeNS(w,'val');
+   if(['left','right','center','both'].includes(alignment))p.style.textAlign=alignment==='both'?'justify':alignment;
+   for(const node of paragraph.getElementsByTagName('*')){
+    if(node.namespaceURI===w && node.localName==='t'){
+     const run=node.parentElement, style=run?.getElementsByTagNameNS(w,'rPr')[0];
+     let text=document.createTextNode(node.textContent);
+     for(const [property,tag] of [['b','strong'],['i','em']]){
+      const value=style?.getElementsByTagNameNS(w,property)[0];
+      if(value&&!['0','false','off'].includes(value.getAttributeNS(w,'val'))){
+       const wrapper=document.createElement(tag);wrapper.append(text);text=wrapper;
+      }
+     }
+     p.append(text);
+    }
+    if(node.namespaceURI===w && ['br','cr'].includes(node.localName))p.append(document.createElement('br'));
+    if(node.namespaceURI===w && node.localName==='tab')p.append('\u2003');
+    if(!((node.namespaceURI===a && node.localName==='blip')||(node.namespaceURI===v && node.localName==='imagedata')))continue;
+    const path=targets.get(node.getAttributeNS(r,'embed')||node.getAttributeNS(r,'id'));
+    const mime=path && types[path.split('.').at(-1).toLowerCase()];
+    if(!mime)continue;
+    if(!pictures.has(path)){
+     const data=await archive.read(path);
+     if(ticket!==generation)return;
+     if(!data)continue;
+     const url=URL.createObjectURL(new Blob([data],{type:mime}));
+     pictures.set(path,url);urls.push(url);
+    }
+    const image=document.createElement('img');
+    image.className='detleng-word-image';
+    image.alt='Image from Word document';
+    image.src=pictures.get(path);
+    p.append(image);
+   }
+   if(p.textContent.trim()||p.querySelector('img'))fragment.append(p);
+  }
+  if(ticket===generation)preview.replaceChildren(fragment.childNodes.length?fragment:'This document has no readable text or supported images.');
+ }
+ button.onclick=()=>picker.click();
+ picker.onchange=async()=>{
+  const file=picker.files[0];picker.value='';
+  if(!file)return;
+  clear();
+  const ticket=generation;
+  heading.textContent=file.name;
+  preview.textContent='Opening Word file…';
+  if(!modal.open)modal.showModal();
+  modal.scrollTop=0;
+  try{await render(file,ticket);}
+  catch(error){if(ticket===generation){clear();preview.textContent=error.message;}}
+ };
+ modal.addEventListener('close',()=>{clear();button.focus();});
 })();
 </script>
 </body></html>
